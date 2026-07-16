@@ -45,6 +45,27 @@ export interface Scheme {
   requirement?: SchemeRequirement;
   [key: string]: any;
 }
+/**
+ * Minimum and maximum allowed age for the Age eligibility field.
+ */
+export const MIN_AGE = 0;
+export const MAX_AGE = 120;
+
+/**
+ * Validate an age value against the allowed 0-120 range.
+ * Returns true only for a finite number within [MIN_AGE, MAX_AGE].
+ * This is enforced independently of any client-side/UI validation so
+ * that invalid ages can never influence eligibility filtering results.
+ */
+export const isValidAge = (age: unknown): age is number => {
+  return (
+    typeof age === 'number' &&
+    Number.isFinite(age) &&
+    Number.isInteger(age) &&
+    age >= MIN_AGE &&
+    age <= MAX_AGE
+  );
+};
 
 /**
  * Compare income levels
@@ -70,15 +91,20 @@ const isUserEligibleForScheme = (
   scheme: Scheme | any
 ): boolean => {
   const requirement = scheme.requirement || {};
+// Age check
+  // Only evaluate age when it is a genuinely valid, in-range value.
 
-  // Age check
-  if (requirement.minAge && user.age && user.age < requirement.minAge) {
-    return false;
+  if (user.age !== undefined) {
+    if (!isValidAge(user.age)) {
+      return false;
+    }
+    if (requirement.minAge && user.age < requirement.minAge) {
+      return false;
+    }
+    if (requirement.maxAge && user.age > requirement.maxAge) {
+      return false;
+    }
   }
-  if (requirement.maxAge && user.age && user.age > requirement.maxAge) {
-    return false;
-  }
-
   // Gender check
   if (
     requirement.preferredGender &&
